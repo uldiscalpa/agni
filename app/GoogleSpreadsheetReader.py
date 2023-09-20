@@ -1,10 +1,11 @@
 import gspread
 import openpyxl
 from oauth2client.service_account import ServiceAccountCredentials
-
+import pandas as pd
+from configs import EMPLOYEES_SPREADSHEET_DATA_TYPES
 
 class GoogleSpreadsheetReader:
-    def __init__(self, credentials_file: str = "../credentials/google_sheet.json", spreadsheet_name: str = "stone_reports"):
+    def __init__(self, credentials_file: str = "../credentials/google_sheet.json", spreadsheet_name: str = "Paveiktais darbs"):
         self.credentials_file = credentials_file
         self.spreadsheet_name = spreadsheet_name
         self.client = None
@@ -44,19 +45,21 @@ class GoogleSpreadsheetReader:
 
         return data
 
+    def get_data_as_dataframe(self, worksheet_name: str = "Veidlapu atbildes: 1") -> pd.DataFrame:
+        data = self.read_worksheet(worksheet_name)
+        columns = ['Laika zīmogs', 'Vārds', 'Projekts', 'Laika darbs', 'Patērētais laiks',
+                   'Gabala darbs', 'Daudzums gabala darbam', 'Datums', 'Komentārs', 'Formatēts datums']
+
+        df = pd.DataFrame(data[1:], columns=columns)
+        return df
+
 
 # Example usage of the GoogleSpreadsheetReader class
 
 
 def main():
-    credentials_file = "../credentials/google_sheet.json"
-    spreadsheet_name = "stone_reports"
-    worksheet_name = "answers"  # Replace with the name of your actual worksheet
-
-    reader = GoogleSpreadsheetReader(credentials_file, spreadsheet_name)
-    data = reader.read_worksheet(worksheet_name)
-    print(data)
-
+    reader = GoogleSpreadsheetReader()
+    data = reader.get_data_as_dataframe()
 
 if __name__ == "__main__":
     main()
