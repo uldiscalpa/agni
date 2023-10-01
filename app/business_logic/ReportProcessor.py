@@ -45,12 +45,12 @@ class ReportProcessor:
         data = pd.read_excel(file_path)
         return data
 
-    def filter_data(self, data: pd.DataFrame, start_date: str, end_date: str, employee_list: List[str]) -> pd.DataFrame:
+    def filter_data_by_time_span(self, data: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
         filtered_data = data[(data['Datums'].dt.date >= start_date) & (
-            data['Datums'].dt.date <= end_date) & (data['Vārds'].isin(employee_list))]
+            data['Datums'].dt.date <= end_date)]
         return filtered_data
 
-    def generate_report(self, report_type: str, *args: List, **kwargs: Dict) -> pd.DataFrame:
+    def generate_basic_report(self, report_type: str, *args: List, **kwargs: Dict) -> pd.DataFrame:
         if report_type == 'employees':
             return self.generate_employee_report(*args, **kwargs)
         elif report_type == 'project':
@@ -92,37 +92,61 @@ class ReportProcessor:
 
         return new_data
 
-    def generate_employee_report(self, start_date: str, end_date: str, employee_list: List[str]) -> List[List]:
+    def generate_employee_report(self, start_date: str, end_date: str, employee_list: List[str], *args, **kwargs) -> List[List]:
         # Read contract data
-        df_contract = pd.read_excel(EXCEL_CONTRACT_PATH)
+        df_contract = pd.read_excel(
+            EXCEL_CONTRACT_PATH, sheet_name='Contracts')
 
-        # Clean up source data
-        df = self.source_data
-        df.drop(['Laika zīmogs', 'Datums'], axis=1, inplace=True)
-        df['Darbs'] = df['Laika darbs'].combine_first(
-            df['Gabala darbs']).astype(str)
-        df = df.merge(df_contract, on=['Darbs', 'Vārds'], how='left')
-        df['Daudzums gabala darbam'] = df['Daudzums gabala darbam'].str.replace(
-            ',', '.').astype(float)
-        df['Patērētais laiks'] = df['Patērētais laiks'].str.replace(
-            ',', '.').astype(float)
+        # clean data
+        df = self.clean_employee_report_data()
+
+        
+        #  calcluate salary
+        df = df.merge(df_contract, on=['Darbs', 'Vārds'], how='left',).reset_index()
+        df.reset_index(drop=True, inplace=True)
         df['Darbs'].fillna('default')
-        df['Daudzums'] = df['Patērētais laiks'].combine_first(
-            df['Daudzums gabala darbam']).astype(float)
-        df['Formatēts datums'] = pd.to_datetime(
-            df['Formatēts datums'], format='%d.%m.%Y')
+
         df['Kopā'] = df['Daudzums'] * df['Samaksa']
+        df['Kopā'] = df['Kopā'].round(2)
 
-        # Filter data by date and employee list
-        filtered_data = self.filter_data(
-            df, start_date, end_date, employee_list)
-
+        df = df.reset_index(drop=True)
+        filtered_data = self.filter_data_by_time_span(
+            df, start_date, end_date)
         # Convert the filtered data to a list of values with the first row as the column list
         column_list = filtered_data.columns.tolist()
         data_list = filtered_data.values.tolist()
         data_list.insert(0, column_list)
-
         return data_list
+
+    def clean_employee_report_data(self) -> pd.DataFrame:
+        # Clean up source data
+        df = self.read_data(self.incoming_file)
+        #  clean date data
+        df.drop(['Laika zīmogs', 'Datums'], axis=1, inplace=True)
+        df['Datums'] = pd.to_datetime(
+            df['Formatēts datums'], format='%d.%m.%Y')
+        df.drop(['Formatēts datums'], axis=1, inplace=True)
+
+        #  clean job list data
+        df['Darbs'] = df['Laika darbs'].combine_first(
+            df['Gabala darbs'])
+        df['Darbs'].fillna('default', inplace=True)
+        df.drop(['Laika darbs', 'Gabala darbs'], axis=1, inplace=True)
+
+        # clean amount data
+        df['Daudzums gabala darbam'] = df['Daudzums gabala darbam'].str.replace(
+            ',', '.')  # replace comma with dot
+
+        df['Patērētais laiks'] = df['Patērētais laiks'].str.replace(
+            ',', '.')  # replace comma with dot
+
+        df['Daudzums'] = df['Patērētais laiks'].combine_first(
+            df['Daudzums gabala darbam']).astype(float)
+        df['Daudzums'].fillna(0, inplace=True)
+        df.drop(['Patērētais laiks', 'Daudzums gabala darbam'],
+                axis=1, inplace=True)
+
+        return df
 
     def generate_pivot_table(self, data: List[List], group_by, values, index, aggfunc) -> List[List]:
         df = pd.DataFrame(data[1:], columns=data[0])

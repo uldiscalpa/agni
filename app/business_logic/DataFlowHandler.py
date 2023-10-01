@@ -23,28 +23,22 @@ class DataJoiner:
 
     def join_data(self, spreadsheet_data: pd.DataFrame, excel_data: pd.DataFrame, on_columns: List[str] = []) -> pd.DataFrame:
         # Join the data from the Google Spreadsheet and the Excel file together and return it as a pandas DataFrame.
-        joined_data = pd.concat([excel_data, spreadsheet_data]).drop_duplicates(
+        joined_data = pd.concat([excel_data, spreadsheet_data], ignore_index=True).drop_duplicates(
             subset=on_columns, keep='last').reset_index(drop=True)
         return joined_data
 
     def write_data(self, data: pd.DataFrame) -> None:
         # Write data to Excel file.
         self.excel_handler.write_data_frame_to_excel(
-            df=data, file_name='test.xlsx')
+            df=data, file_name=self.excel_file_path)
 
     def run(self) -> None:
         # Read data from Google Spreadsheet.
         spreadsheet_data = self.read_spreadsheet_data()
-
         # Read data from Excel file.
         excel_data = self.read_excel_data()
-
-        print(spreadsheet_data)
-        print(excel_data)
         # Join the data from the Google Spreadsheet and the Excel file together.
         joined_data = self.join_data(spreadsheet_data, excel_data, on_columns=[
                                      "Vārds", "Laika zīmogs"])
-
-        print(joined_data)
         # Write data to Excel file.
         self.write_data(joined_data)

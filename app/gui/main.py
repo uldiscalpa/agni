@@ -144,10 +144,10 @@ class EmployeeFields(tk.Frame):
     def generate_report(self):
         values = self.get_field_values()
         # try:
-        report = ReportGenerator(input_file_path=EMPLOYEES_FILE_PATH,
-                                 output_file_path=f"..\reports\{self.file_name.get()}.xlsx")
+        report = ReportGenerator(input_file_path='..\data\work_done.xlsx',
+                                 output_file_path=fr"..\reports\{self.file_name.get()}.xlsx")
 
-        report.run(**values)
+        report.run(project_type='employees', **values)
         messagebox.showinfo("Success", "Report is created")
 
 
@@ -218,45 +218,82 @@ class ConfigurationView(tk.Frame):
 
     def create_widgets(self):
         # "Update form" button
-        self.update_form_button = ttk.Button(
-            self, text="Update form", command=self.update_form)
-        self.update_form_button.pack(pady=10)
+        self.update_projects_form_button = ttk.Button(
+            self, text="Update projects in forms", command=self.update_project_form_field)
+        self.update_projects_form_button.pack(pady=10)
+
+        self.update_employees_form_button = ttk.Button(
+            self, text="Update employees in forms", command=self.update_employee_form_field)
+        self.update_employees_form_button.pack(pady=10)
+
+        self.update_job_list_form_button = ttk.Button(
+            self, text="Update job list in forms", command=self.update_job_form_field)
+        self.update_job_list_form_button.pack(pady=10)
 
         # "Pull data" button
         self.pull_data_button = ttk.Button(
             self, text="Pull data", command=self.pull_data)
         self.pull_data_button.pack(pady=10)
 
-        self.save_button = ttk.Button(
-            self, text="Save Configuration", command=self.save_config)
-        self.save_button.pack(pady=10)
-
-    def update_form(self):
+    def update_project_form_field(self):
         # Read data from Excel file
         excel_handler = ExcelHandler(file_path='..\data\projects.xlsx')
         data = excel_handler.read_column_values(['code', 'name'])
-        data = [f'{row[0]} - {row[1]}' for row in data]
+        data = [[row[0], row[1], f'{row[0]} - {row[1]}'] for row in data]
+        # column names are hardcoded to match the Google Spreadsheet
+        data.insert(0, ['Kods', 'Papildus paskaidrojums', 'Display value'])
+
         # Write data to Google Spreadsheet
         spreadsheet_handler = GoogleSpreadsheetHandler(
             credentials_file='..\credentials\google_sheet.json', spreadsheet_name='Test form (Responses)')
         spreadsheet_handler.write_to_google_sheet(
             values=data, sheet_name='Projekti')
+        messagebox.showinfo(
+            "Configuration", "Porcess finished!")
+
+    def update_employee_form_field(self) -> None:
+        # Read data from Excel file
+        excel_handler = ExcelHandler(file_path='..\data\employees.xlsx')
+        data = excel_handler.read_column_values(['Vārds'])
+        # column names are hardcoded to match the Google Spreadsheet
+        data.insert(0, ['Vārds'])
+
+        # Write data to Google Spreadsheet
+        spreadsheet_handler = GoogleSpreadsheetHandler(
+            credentials_file='..\credentials\google_sheet.json', spreadsheet_name='Test form (Responses)')
+        spreadsheet_handler.write_to_google_sheet(
+            values=data, sheet_name='Darbinieki')
+        messagebox.showinfo(
+            "Configuration", "Porcess finished!")
+
+    def update_job_form_field(self) -> None:
+        # Read data from Excel file
+        excel_handler = ExcelHandler(file_path='..\data\employees.xlsx')
+        data = excel_handler.read_column_values(
+            ['Darbu saraksts', 'Prioritāte anketā'], sheet_name='Jobs')
+        data = sorted(data, key=lambda x: x[1])
+        data = [[row[0]] for row in data]
+        # column names are hardcoded to match the Google Spreadsheet
+        data.insert(0, ['Darbs'])
+
+        # Write data to Google Spreadsheet
+        spreadsheet_handler = GoogleSpreadsheetHandler(
+            credentials_file='..\credentials\google_sheet.json', spreadsheet_name='Test form (Responses)')
+        spreadsheet_handler.write_to_google_sheet(
+            values=data, sheet_name='Darbu saraksts')
+        messagebox.showinfo(
+            "Configuration", "Porcess finished!")
 
     def pull_data(self):
         # Read data from Google Spreadsheet and Excel file, join it, and write it to Excel file
         spreadsheet_handler = GoogleSpreadsheetHandler(
             credentials_file='..\credentials\google_sheet.json', spreadsheet_name='Paveiktais darbs')
-        excel_handler = ExcelHandler(file_path='..\data\paveiktais_darbs.xlsx')
+        excel_handler = ExcelHandler(file_path='..\data\work_done.xlsx')
         data_joiner = DataJoiner(spreadsheet_handler=spreadsheet_handler, excel_handler=excel_handler,
-                                 worksheet_name='Veidlapu atbildes: 1', excel_file_path='..\data\employees.xlsx')
+                                 worksheet_name='Veidlapu atbildes: 1', excel_file_path='..\data\work_done.xlsx')
         data_joiner.run()
-
-    def save_config(self):
-        # Just a dummy function to simulate saving the configuration.
-        # In a real application, this would involve storing the configuration to a file or database.
-        print("Configuration saved successfully!")
         messagebox.showinfo(
-            "Configuration", "Configuration saved successfully!")
+            "Configuration", "Porcess finished!")
 
 
 class DataMergingView(tk.Frame):
